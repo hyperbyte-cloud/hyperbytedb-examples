@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Satellite positions — Cesium</title>
+  <link href="https://unpkg.com/cesium@1.120.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  <style>
+    html, body, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    #hud { position: absolute; left: 8px; top: 8px; z-index: 1; color: #eee; font: 12px/1.4 system-ui, sans-serif; text-shadow: 0 0 4px #000; max-width: min(420px, 92vw); }
+    a { color: #7af; }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <strong>Cesium + InfluxQL API</strong><br />
+    <span id="msg">Loading…</span>
+  </div>
+  <div id="cesiumContainer"></div>
+  <script>window.CESIUM_BASE_URL = "https://unpkg.com/cesium@1.120.0/Build/Cesium/";</script>
+  <script src="https://unpkg.com/cesium@1.120.0/Build/Cesium/Cesium.js" crossorigin="anonymous"></script>
+  <script>
+(function () {
+  if (window.CESIUM_ION_TOKEN) {
+    Cesium.Ion.defaultAccessToken = window.CESIUM_ION_TOKEN;
+  }
+  var API = window.SAT_API_URL || (location.origin + "/api/v1/satellites");
+  var POLL = typeof window.SAT_POLL_MS === "number" ? window.SAT_POLL_MS : 15000;
+  // Each satellite is one Entity+point; Cesium can throw (Invalid array length in PVS) with ~20k+.
+  var MAX_POINTS = typeof window.SAT_MAX_ENTITIES === "number"
+    ? Math.max(1, Math.min(Math.floor(window.SAT_MAX_ENTITIES), 25000))
+    : 10000;
+  var msg = document.getElementById("msg");
+  // a.tile.openstreetmap.org often 403s Cesium: policy / tile-loader identity. CARTO basemaps
+  // (OSM + CARTO data) are reliable in browsers. https://github.com/CartoDB/basemap-styles
+  var basemap = new Cesium.UrlTemplateImageryProvider({
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c", "d"],
+    credit: "© OpenStreetMap © CARTO",
+    maximumLevel: 19,
+  });
+  var viewer = new Cesium.Viewer("cesiumContainer", {
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    baseLayer: false,
+    baseLayerPicker: false,
+    geocoder: false,
+    homeButton: true,
+    sceneModePicker: true,
+    navigationHelpButton: true,
+    animation: false,
+    timeline: false,
+    fullscreenButton: true,
+  });
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.addImageryProvider(basemap);
+  viewer.scene.globe.showGroundAtmosphere = true;
+
+  var hasFramedOnce = false;
+
+  function load() {
+    var posP, dirP, upP;
+    if (hasFramedOnce) {
+      var c = viewer.scene.camera;
+      posP = Cesium.Cartesian3.clone(c.position, new Cesium.Cartesian3());
+      dirP = Cesium.Cartesian3.clone(c.direction, new Cesium.Cartesian3());
+      upP = Cesium.Cartesian3.clone(c.up, new Cesium.Cartesian3());
+    }
+    return fetch(API, { cache: "no-store", credentials: "same-origin" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        var cam = viewer.scene.camera;
+        function restoreCam() {
+          if (posP && hasFramedOnce) {
+            cam.setView({
+              destination: posP,
+              orientation: { direction: dirP, up: upP },
+            });
+          }
+        }
+        viewer.entities.removeAll();
+        if (!j.satellites || !j.satellites.length) {
+          msg.textContent = "0 objects — " + (j.count != null ? "count " + j.count : "");
+          restoreCam();
+          return;
+        }
+        var total = j.satellites.length;
+        var list = total > MAX_POINTS ? j.satellites.slice(0, MAX_POINTS) : j.satellites;
+        var capNote = list.length < total
+          ? " (showing " + list.length + " of " + total + " — cap SAT_MAX_ENTITIES, default 10000)"
+          : "";
+        for (var i = 0; i < list.length; i++) {
+          var s = list[i];
+          var h = s.altMeters != null ? s.altMeters : 550000;
+          var lon = s.lon;
+          var la = s.lat;
+          if (la == null || lon == null) continue;
+          var name = s.name != null ? s.name : "NORAD " + s.norad;
+          viewer.entities.add({
+            name: name,
+            position: Cesium.Cartesian3.fromDegrees(lon, la, h),
+            point: {
+              pixelSize: 5,
+              color: Cesium.Color.CYAN,
+              outlineColor: Cesium.Color.DARKSLATEGRAY,
+              outlineWidth: 1,
+            },
+            description: "<table><tr><td>NORAD</td><td>" + s.norad + "</td></tr>" +
+              "<tr><td>Lat, Lon</td><td>" + la.toFixed(4) + ", " + lon.toFixed(4) + "</td></tr>" +
+              "<tr><td>Alt (m)</td><td>" + Math.round(h) + "</td></tr></table>",
+          });
+        }
+        msg.textContent =
+          j.count + " object(s) — " + (j.database || "") + " / " + (j.measurement || "") +
+          (j.updated ? " — updated " + j.updated : "") + capNote;
+        if (hasFramedOnce) {
+          restoreCam();
+        }
+        if (!hasFramedOnce && list.length > 0) {
+          hasFramedOnce = true;
+          viewer.flyTo(viewer.entities, {
+            duration: 1.0,
+            offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-25), 1.5e7),
+          });
+        }
+      })
+      .catch(function (e) {
+        msg.textContent = "Error: " + (e && e.message ? e.message : e) + " — API: " + API;
+        console.error(e);
+      });
+  }
+  load();
+  if (POLL > 0) setInterval(load, POLL);
+})();
+  </script>
+</body>
+</html>

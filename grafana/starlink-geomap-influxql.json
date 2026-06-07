@@ -1,0 +1,115 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_INFLUX",
+      "label": "InfluxDB 1.x",
+      "description": "InfluxDB 1 (InfluxQL only, no Flux). Set Database to n2yo or your -db name.",
+      "type": "datasource",
+      "pluginId": "influxdb",
+      "pluginName": "InfluxDB"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Starlink (tle_position) on a Geomap using InfluxDB 1.x InfluxQL only. Configure the Influx datasource with database n2yo (or your -db). Shows up to 100 satellites (SLIMIT 100) — series order is server-defined. Use time range of a few minutes for fresh points.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUX}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 22, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "basemap": { "name": "Basemap", "type": "default" },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showScale": true,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "name": "Starlink (100)",
+            "type": "markers",
+            "tooltip": true,
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": { "field": "alt_km", "fixed": "dark-blue" },
+                "opacity": 0.85,
+                "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
+                "size": { "field": "alt_km", "fixed": 6, "max": 14, "min": 3 },
+                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
+                "text": { "field": "satname", "fixed": "", "mode": "field" },
+                "textConfig": { "fontSize": 10, "offsetX": 0, "offsetY": -8, "textAlign": "center", "textBaseline": "bottom" }
+              }
+            },
+            "location": { "mode": "coords", "latitude": "latitude", "longitude": "longitude" }
+          }
+        ],
+        "tooltip": { "mode": "details" },
+        "view": { "id": "zero", "lat": 20, "lon": 0, "zoom": 1.3 }
+      },
+      "pluginVersion": "10.0.0",
+      "repeat": null,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUX}" },
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table",
+          "query": "SELECT\n  last(\"satlatitude\")  AS \"latitude\",\n  last(\"satlongitude\")  AS \"longitude\",\n  last(\"sataltitude_km\") AS \"alt_km\"\nFROM \"tle_position\"\nWHERE $timeFilter\nGROUP BY \"satid\", \"satname\"\nSLIMIT 100"
+        }
+      ],
+      "title": "Up to 100 Starlink sats (latest position, InfluxQL table)",
+      "type": "geomap"
+    },
+    {
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 22 },
+      "id": 2,
+      "options": {
+        "code": { "language": "markdown", "showLineNumbers": false, "showMiniMap": false },
+        "content": "Requires **InfluxDB 1.x** datasource, **no Flux**. Set datasource **Database** to the DB n2yo-influx writes to (default `n2yo`).\n\nQuery uses `GROUP BY \"satid\",\"satname\"` and **`SLIMIT 100`**. To color/size by altitude, the query aliases `last(\"sataltitude_km\")` as `alt_km`.\n\nIf the table returns tag columns with different names, open the query **Transform** tab and adjust, or set Geomap **Layer → Markers → Location** to the actual latitude/longitude field names (often `latitude` and `longitude`).\n",
+        "mode": "markdown"
+      },
+      "title": "Notes",
+      "type": "text"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [ "n2yo", "influx1", "starlink" ],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Starlink Geomap (InfluxQL v1, 100 sats)",
+  "uid": "n2yo-starlink-influxql",
+  "version": 1,
+  "weekStart": ""
+}
