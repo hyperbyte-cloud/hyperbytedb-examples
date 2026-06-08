@@ -1,14 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_INFLUX",
-      "label": "InfluxDB 1.x",
-      "description": "InfluxDB 1 (InfluxQL only, no Flux). Set Database to n2yo or your -db name.",
-      "type": "datasource",
-      "pluginId": "influxdb",
-      "pluginName": "InfluxDB"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -31,7 +21,7 @@
   "liveNow": true,
   "panels": [
     {
-      "datasource": { "type": "influxdb", "uid": "${DS_INFLUX}" },
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "continuous-GrYlRd" },
@@ -78,7 +68,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "datasource": { "type": "influxdb", "uid": "${DS_INFLUX}" },
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "table",
@@ -104,7 +94,22 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [ "n2yo", "influx1", "starlink" ],
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "current": { "text": "Satellite Tracking", "value": "Satellite Tracking" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "influxdb",
+        "refresh": 1,
+        "regex": "Satellite Tracking",
+        "type": "datasource"
+      }
+    ]
+  },
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",

@@ -1,4 +1,4 @@
-module n2yo-influx
+module satellite-tracking
 
 go 1.21
 

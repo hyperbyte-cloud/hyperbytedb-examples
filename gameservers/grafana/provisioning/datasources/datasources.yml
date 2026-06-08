@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: Multiplay
+    type: influxdb
+    access: proxy
+    url: http://hyperbytedb:8086
+    database: multiplay
+    editable: true

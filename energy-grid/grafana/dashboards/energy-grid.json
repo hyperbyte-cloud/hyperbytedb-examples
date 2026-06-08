@@ -1,0 +1,777 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["$__interval"], "type": "time" }, { "params": ["null"], "type": "fill" }],
+          "measurement": "energy_generation",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Total Generation",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": 0 }] },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["$__interval"], "type": "time" }, { "params": ["null"], "type": "fill" }],
+          "measurement": "energy_demand",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["demand_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Total Demand",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": -20 },
+              { "color": "green", "value": -5 },
+              { "color": "green", "value": 5 },
+              { "color": "blue", "value": 20 }
+            ]
+          },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["$__interval"], "type": "time" }, { "params": ["null"], "type": "fill" }],
+          "measurement": "energy_balance",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["net_balance_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Global Net Balance",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["$__interval"], "type": "time" }, { "params": ["null"], "type": "fill" }],
+          "measurement": "energy_storage",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["soc_percent"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Avg Storage SOC",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "MW",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 35,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_source",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["source"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_generation",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Energy Generation by Source",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "MW",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "mappings": [],
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_region",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["region"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_generation",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Generation by Region",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisLabel": "MW",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_sector",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["sector"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_demand",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["demand_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": []
+        }
+      ],
+      "title": "Energy Demand by Sector",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": true,
+            "axisLabel": "MW",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_region net",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["region"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_balance",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["net_balance_mw"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Regional Net Energy Balance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "MW",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "megwatt"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*import.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*export.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_region import",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["region"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_flow",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": [{ "key": "direction", "operator": "=", "value": "import" }]
+        },
+        {
+          "alias": "$tag_region export",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["region"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_flow",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "sum" }]],
+          "tags": [{ "key": "direction", "operator": "=", "value": "export" }]
+        }
+      ],
+      "title": "Grid Import & Export",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "MW",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "megwatt"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_from_site → $tag_to_site",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["from_site"], "type": "tag" },
+            { "params": ["to_site"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_flow",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": [{ "key": "flow_type", "operator": "=", "value": "transmission" }]
+        }
+      ],
+      "title": "Inter-Regional Transmission",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "SOC %",
+            "axisSoftMax": 100,
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "min", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_site_name",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["site_name"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_storage",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["soc_percent"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Storage State of Charge",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": true,
+            "axisLabel": "MW",
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "megwatt"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*charge.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*discharge.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_site_name charge",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["site_name"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_storage",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["charge_mw"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        },
+        {
+          "alias": "$tag_site_name discharge",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["site_name"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "energy_storage",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["discharge_mw"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Storage Charge & Discharge",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "power_mw" },
+            "properties": [{ "id": "unit", "value": "megwatt" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "demand_mw" },
+            "properties": [{ "id": "unit", "value": "megwatt" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "soc_percent" },
+            "properties": [{ "id": "unit", "value": "percent" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "net_balance_mw" },
+            "properties": [
+              { "id": "unit", "value": "megwatt" },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": -10 },
+                    { "color": "green", "value": -2 },
+                    { "color": "green", "value": 2 },
+                    { "color": "blue", "value": 10 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 37 },
+      "id": 13,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "power_mw" }]
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["site_name"], "type": "tag" }, { "params": ["source"], "type": "tag" }, { "params": ["region"], "type": "tag" }],
+          "measurement": "energy_generation",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"power_mw\") AS \"power_mw\" FROM \"energy_generation\" WHERE $timeFilter GROUP BY \"site_name\", \"source\", \"region\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table",
+          "select": [[{ "params": ["power_mw"], "type": "field" }, { "params": [], "type": "last" }]],
+          "tags": []
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["site_name"], "type": "tag" }, { "params": ["region"], "type": "tag" }],
+          "hide": false,
+          "measurement": "energy_storage",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"soc_percent\") AS \"soc_percent\" FROM \"energy_storage\" WHERE $timeFilter GROUP BY \"site_name\", \"region\"",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "table",
+          "select": [[{ "params": ["soc_percent"], "type": "field" }, { "params": [], "type": "last" }]],
+          "tags": []
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["region"], "type": "tag" }],
+          "hide": false,
+          "measurement": "energy_balance",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"net_balance_mw\") AS \"net_balance_mw\", last(\"demand_mw\") AS \"demand_mw\" FROM \"energy_balance\" WHERE $timeFilter GROUP BY \"region\"",
+          "rawQuery": true,
+          "refId": "C",
+          "resultFormat": "table",
+          "select": [
+            [{ "params": ["net_balance_mw"], "type": "field" }, { "params": [], "type": "last" }],
+            [{ "params": ["demand_mw"], "type": "field" }, { "params": [], "type": "last" }]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Current Site & Region Snapshot",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true }, "indexByName": {}, "renameByName": { "net_balance_mw": "Net Balance", "power_mw": "Generation", "region": "Region", "site_name": "Site", "soc_percent": "Storage SOC", "source": "Source" } } }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "refresh": "1m",
+  "schemaVersion": 42,
+  "tags": ["energy", "hyperbytedb"],
+  "templating": {
+    "list": [
+      {
+        "current": { "text": "Energy Grid", "value": "Energy Grid" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "influxdb",
+        "refresh": 1,
+        "regex": "Energy Grid",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Energy Grid Operations",
+  "uid": "energy-grid-ops",
+  "version": 1,
+  "weekStart": ""
+}

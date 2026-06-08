@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: Energy Grid
+    type: influxdb
+    access: proxy
+    url: http://hyperbytedb:8086
+    database: energy_grid
+    editable: true

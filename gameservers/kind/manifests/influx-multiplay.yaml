@@ -1,0 +1,131 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: influx-multiplay-setup
+  namespace: hyperbytedb
+data:
+  setup.sh: |
+    #!/bin/sh
+    set -eu
+
+    URL="${HYPERBYTEDB_URL:-http://hyperbytedb-proxy:8086}"
+    DB="multiplay"
+
+    wait_for_db() {
+      i=0
+      while [ "$i" -lt 60 ]; do
+        if curl -sf "${URL}/ping" >/dev/null; then
+          return 0
+        fi
+        i=$((i + 1))
+        sleep 2
+      done
+      echo "hyperbytedb not reachable at ${URL}" >&2
+      return 1
+    }
+
+    response_has_error() {
+      echo "$1" | grep -q '"error":[^n]' && echo "$1" | grep -qv '"error":null'
+    }
+
+    query() {
+      body=$(curl -sf -X POST "${URL}/query" --data-urlencode "q=$1") || return 1
+      if response_has_error "$body"; then
+        echo "$body" >&2
+        return 1
+      fi
+      echo "$body"
+    }
+
+    wait_for_db
+
+    echo "creating multiplay database"
+    query "CREATE DATABASE ${DB}"
+
+    echo "creating 90d retention policy"
+    query "CREATE RETENTION POLICY \"90d\" ON \"${DB}\" DURATION 90d REPLICATION 1"
+
+    echo "creating cq_server_players continuous query"
+    query "CREATE CONTINUOUS QUERY \"cq_server_players\" ON \"${DB}\" RESAMPLE EVERY 1m FOR 5m BEGIN SELECT sum(\"players\") AS \"players\" INTO \"${DB}\".\"90d\".\"server_stats_players\" FROM \"server_stats\" GROUP BY time(1m), * END"
+
+    echo "multiplay database, 90d retention policy, and cq_server_players ready"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: influx-multiplay-setup
+  namespace: hyperbytedb
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: influx-multiplay-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: curlimages/curl:8.5.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HYPERBYTEDB_URL
+              value: http://hyperbytedb-proxy:8086
+          command: ["/bin/sh", "/scripts/setup.sh"]
+          volumeMounts:
+            - name: setup-script
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+      volumes:
+        - name: setup-script
+          configMap:
+            name: influx-multiplay-setup
+            defaultMode: 0444
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influx-multiplay
+  namespace: hyperbytedb
+  labels:
+    app: influx-multiplay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influx-multiplay
+  template:
+    metadata:
+      labels:
+        app: influx-multiplay
+    spec:
+      containers:
+        - name: ingester
+          image: influx-multiplay:local
+          imagePullPolicy: Never
+          args:
+            - --url=http://hyperbytedb-proxy:8086
+            - --db=multiplay
+            - --create-db
+            - --continuous
+            - --server-rows=0
+            - --server-small-rows=60000
+            - --machine-rows=0
+            - --action-rows=0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
