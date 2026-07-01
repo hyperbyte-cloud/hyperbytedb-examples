@@ -9,93 +9,45 @@ import (
 	"time"
 )
 
-func writeServerStatsRow(buf *strings.Builder, rng *rand.Rand, ts int64) {
-	// Refactored for easier modification of values
-	type ServerStatsParams struct {
-		AccountServiceID int32
-		Fleet            string
-		FleetID          string
-		GameID           int32
-		LocationID       int32
-		MachineID        int32
-		Map              string
-		ModID            int32
-		ProfileID        int32
-		Provider         string
-		Region           string
-		RegionID         string
-		ServerID         int32
-		CPU              int32
-		MaxPlayers       int32
-		Mem              int32
-		Players          int32
-		UsedSlots        int32
-		Timestamp        int64
-	}
-
-	maxPlayers := int32(25)
-	players := int32(rng.Int31n(int32(maxPlayers)))
-	usedSlots := players
-
-	// Generate all randomized or fixed values here for easy modification
-	params := ServerStatsParams{
-		AccountServiceID: rng.Int31n(20),
-		Fleet:            "fleet1",
-		FleetID:          fmt.Sprintf("ab7b39da-3571-4b13-bc06-69833b4f7e1%d", rng.Int31n(9)),
-		GameID:           rng.Int31n(100),
-		LocationID:       rng.Int31n(100),
-		MachineID:        rng.Int31n(23000),
-		Map:              "map",
-		ModID:            rng.Int31n(100),
-		ProfileID:        rng.Int31n(100),
-		Provider:         "oneprovider",
-		Region:           "region",
-		RegionID:         fmt.Sprintf("ab7b39da-3571-4b13-bc06-69833b4f7e1%d", rng.Int31n(9)),
-		ServerID:         rng.Int31n(2000),
-		CPU:              rng.Int31n(99),
-		Mem:              rng.Int31n(99),
-		MaxPlayers:       maxPlayers,
-		Players:          players,
-		UsedSlots:        usedSlots,
-		Timestamp:        ts,
-	}
-
+func writeServerStatsRow(buf *strings.Builder, srv *Server, ts int64) {
 	fmt.Fprintf(buf,
 		"server_stats,account_service_id=%d,fleet=%s,fleet_id=%s,game_id=%d,location_id=%d,machine_id=%d,map=%s,mod_id=%d,profile_id=%d,provider=%s,region=%s,region_id=%s,server_id=%d cpu=%di,max_players=%di,mem=%di,players=%di,used_slots=%di %d",
-		params.AccountServiceID,
-		params.Fleet,
-		params.FleetID,
-		params.GameID,
-		params.LocationID,
-		params.MachineID,
-		params.Map,
-		params.ModID,
-		params.ProfileID,
-		params.Provider,
-		params.Region,
-		params.RegionID,
-		params.ServerID,
-		params.CPU,
-		params.MaxPlayers,
-		params.Mem,
-		params.Players,
-		params.UsedSlots,
-		params.Timestamp,
+		srv.AccountServiceID,
+		escapeTag(srv.Fleet),
+		escapeTag(srv.FleetID),
+		srv.GameID,
+		srv.LocationID,
+		srv.MachineID,
+		escapeTag(srv.Map),
+		srv.ModID,
+		srv.ProfileID,
+		escapeTag(srv.Provider),
+		escapeTag(srv.Region),
+		escapeTag(srv.RegionID),
+		srv.ServerID,
+		srv.CPU,
+		srv.MaxPlayers,
+		srv.MemMB,
+		srv.Players,
+		srv.UsedSlots,
+		ts,
 	)
-
 }
-func generateServerStats(w *InfluxWriter, total, batchSize, numWorkers int, period time.Duration, jitter float64, concurrency int) {
+
+func generateServerStats(w *InfluxWriter, sim *Simulation, batchSize, numWorkers int, period time.Duration, jitter float64, concurrency int) {
+	total := len(sim.Servers)
 	if total <= 0 {
 		return
 	}
 	if period > 0 {
-		generateServerStatsPaced(w, total, period, jitter, concurrency)
+		generateServerStatsPaced(w, sim, period, jitter, concurrency)
 	} else {
-		generateServerStatsBurst(w, total, batchSize, numWorkers)
+		generateServerStatsBurst(w, sim, batchSize, numWorkers)
 	}
 }
 
-func generateServerStatsPaced(w *InfluxWriter, total int, period time.Duration, jitter float64, concurrency int) {
+func generateServerStatsPaced(w *InfluxWriter, sim *Simulation, period time.Duration, jitter float64, concurrency int) {
+	total := len(sim.Servers)
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	const sendsPerSec = 10
@@ -139,13 +91,13 @@ func generateServerStatsPaced(w *InfluxWriter, total int, period time.Duration, 
 			n = total - sent
 		}
 
-		ts := time.Now().UnixNano()
+		ts := start.Add(time.Duration(slotNs)).UnixNano()
 		var buf strings.Builder
 		for k := 0; k < n; k++ {
 			if k > 0 {
 				buf.WriteByte('\n')
 			}
-			writeServerStatsRow(&buf, rng, ts)
+			writeServerStatsRow(&buf, &sim.Servers[sent+k], ts)
 		}
 		sent += n
 		body := buf.String()
@@ -161,29 +113,43 @@ func generateServerStatsPaced(w *InfluxWriter, total int, period time.Duration, 
 	}
 
 	wg.Wait()
-	log.Printf("server_stats: %d rows paced over %v", sent, time.Since(start).Round(time.Millisecond))
+	elapsed := time.Since(start)
+	log.Printf("server_stats: %d rows paced over %v", sent, elapsed.Round(time.Millisecond))
+	if elapsed < period {
+		log.Printf("server_stats WARMUP: finished %v before period end — next cycle will align", (period - elapsed).Round(time.Millisecond))
+	}
 }
 
-func generateServerStatsBurst(w *InfluxWriter, total, batchSize, numWorkers int) {
+func generateServerStatsBurst(w *InfluxWriter, sim *Simulation, batchSize, numWorkers int) {
+	total := len(sim.Servers)
 	perWorker := total / numWorkers
+	if perWorker == 0 {
+		perWorker = total
+		numWorkers = 1
+	}
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 
 	currentTimestamp := time.Now().UnixNano()
 
 	for i := 0; i < numWorkers; i++ {
-		go func(id int) {
+		workerID := i
+		startIdx := workerID * perWorker
+		endIdx := startIdx + perWorker
+		if workerID == numWorkers-1 {
+			endIdx = total
+		}
+		go func(id, from, to int) {
 			defer wg.Done()
-			rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
 			start := time.Now()
 			var buf strings.Builder
 			count := 0
 
-			for k := 0; k < perWorker; k++ {
+			for k := from; k < to; k++ {
 				if count > 0 {
 					buf.WriteByte('\n')
 				}
-				writeServerStatsRow(&buf, rng, currentTimestamp)
+				writeServerStatsRow(&buf, &sim.Servers[k], currentTimestamp)
 				count++
 
 				if count >= batchSize {
@@ -203,8 +169,8 @@ func generateServerStatsBurst(w *InfluxWriter, total, batchSize, numWorkers int)
 				}
 			}
 
-			log.Printf("server_stats worker %d: %d rows in %.2fs", id, perWorker, time.Since(start).Seconds())
-		}(i)
+			log.Printf("server_stats worker %d: %d rows in %.2fs", id, to-from, time.Since(start).Seconds())
+		}(workerID, startIdx, endIdx)
 	}
 	wg.Wait()
 	log.Printf("server_stats: %d total rows burst", total)
