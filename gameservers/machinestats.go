@@ -9,41 +9,46 @@ import (
 	"time"
 )
 
-func writeMachineStatsRow(buf *strings.Builder, rng *rand.Rand, ts int64) {
+func writeMachineStatsRow(buf *strings.Builder, machine *Machine, ts int64) {
 	fmt.Fprintf(buf,
-		"machine_stats,account_service_id=%d,fleet=fleet1,fleet_id=ab7b39da-3571-4b13-bc06-69833b4f7e1%d,location_id=%d,machine_id=%d,provider=oneprovider,region=region,region_id=ab7b39da-3571-4b13-bc06-69833b4f7e1%d am=%di,avm=%di,cs=%di,free=%di,idle=%f,servers=%di,swapin=%di,swapout=%di,swapused=%di,sys=%f,user=%f %d",
-		rng.Int31n(20),
-		rng.Int31n(9),
-		rng.Int31n(100),
-		rng.Int31n(23000),
-		rng.Int31n(9),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Float32(),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Int31n(100),
-		rng.Float32(),
-		rng.Float32(),
+		"machine_stats,account_service_id=%d,fleet=%s,fleet_id=%s,location_id=%d,machine_id=%d,provider=%s,region=%s,region_id=%s am=%di,avm=%di,cs=%di,free=%di,idle=%f,servers=%di,swapin=%di,swapout=%di,swapused=%di,sys=%f,user=%f %d",
+		machine.AccountServiceID,
+		escapeTag(machine.Fleet),
+		escapeTag(machine.FleetID),
+		machine.LocationID,
+		machine.MachineID,
+		escapeTag(machine.Provider),
+		escapeTag(machine.Region),
+		escapeTag(machine.RegionID),
+		machine.MemActiveMB,
+		machine.MemAvailableMB,
+		machine.MemCachedMB,
+		machine.MemFreeMB,
+		machine.Idle,
+		machine.ServerCount,
+		machine.SwapIn,
+		machine.SwapOut,
+		machine.SwapUsed,
+		machine.CPUSys,
+		machine.CPUUser,
 		ts,
 	)
 }
 
-func generateMachineStats(w *InfluxWriter, total, batchSize, numWorkers int, period time.Duration, jitter float64, concurrency int) {
+func generateMachineStats(w *InfluxWriter, sim *Simulation, batchSize, numWorkers int, period time.Duration, jitter float64, concurrency int) {
+	total := len(sim.Machines)
 	if total <= 0 {
 		return
 	}
 	if period > 0 {
-		generateMachineStatsPaced(w, total, period, jitter, concurrency)
+		generateMachineStatsPaced(w, sim, period, jitter, concurrency)
 	} else {
-		generateMachineStatsBurst(w, total, batchSize, numWorkers)
+		generateMachineStatsBurst(w, sim, batchSize, numWorkers)
 	}
 }
 
-func generateMachineStatsPaced(w *InfluxWriter, total int, period time.Duration, jitter float64, concurrency int) {
+func generateMachineStatsPaced(w *InfluxWriter, sim *Simulation, period time.Duration, jitter float64, concurrency int) {
+	total := len(sim.Machines)
 	rng := rand.New(rand.NewSource(time.Now().UnixNano() + 1))
 
 	const sendsPerSec = 10
@@ -87,13 +92,13 @@ func generateMachineStatsPaced(w *InfluxWriter, total int, period time.Duration,
 			n = total - sent
 		}
 
-		ts := time.Now().UnixNano()
+		ts := start.Add(time.Duration(slotNs)).UnixNano()
 		var buf strings.Builder
 		for k := 0; k < n; k++ {
 			if k > 0 {
 				buf.WriteByte('\n')
 			}
-			writeMachineStatsRow(&buf, rng, ts)
+			writeMachineStatsRow(&buf, &sim.Machines[sent+k], ts)
 		}
 		sent += n
 		body := buf.String()
@@ -112,26 +117,36 @@ func generateMachineStatsPaced(w *InfluxWriter, total int, period time.Duration,
 	log.Printf("machine_stats: %d rows paced over %v", sent, time.Since(start).Round(time.Millisecond))
 }
 
-func generateMachineStatsBurst(w *InfluxWriter, total, batchSize, numWorkers int) {
+func generateMachineStatsBurst(w *InfluxWriter, sim *Simulation, batchSize, numWorkers int) {
+	total := len(sim.Machines)
 	perWorker := total / numWorkers
+	if perWorker == 0 {
+		perWorker = total
+		numWorkers = 1
+	}
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 
 	currentTimestamp := time.Now().UnixNano()
 
 	for i := 0; i < numWorkers; i++ {
-		go func(id int) {
+		workerID := i
+		startIdx := workerID * perWorker
+		endIdx := startIdx + perWorker
+		if workerID == numWorkers-1 {
+			endIdx = total
+		}
+		go func(id, from, to int) {
 			defer wg.Done()
-			rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
 			start := time.Now()
 			var buf strings.Builder
 			count := 0
 
-			for k := 0; k < perWorker; k++ {
+			for k := from; k < to; k++ {
 				if count > 0 {
 					buf.WriteByte('\n')
 				}
-				writeMachineStatsRow(&buf, rng, currentTimestamp)
+				writeMachineStatsRow(&buf, &sim.Machines[k], currentTimestamp)
 				count++
 
 				if count >= batchSize {
@@ -151,8 +166,8 @@ func generateMachineStatsBurst(w *InfluxWriter, total, batchSize, numWorkers int
 				}
 			}
 
-			log.Printf("machine_stats worker %d: %d rows in %.2fs", id, perWorker, time.Since(start).Seconds())
-		}(i)
+			log.Printf("machine_stats worker %d: %d rows in %.2fs", id, to-from, time.Since(start).Seconds())
+		}(workerID, startIdx, endIdx)
 	}
 	wg.Wait()
 	log.Printf("machine_stats: %d total rows burst", total)

@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: influx-multiplay-setup
+  name: influx-gameservers-setup
   namespace: hyperbytedb
 data:
   setup.sh: |
@@ -10,7 +10,7 @@ data:
     set -eu
 
     URL="${HYPERBYTEDB_URL:-http://hyperbytedb-proxy:8086}"
-    DB="multiplay"
+    DB="gameservers"
 
     wait_for_db() {
       i=0
@@ -40,22 +40,18 @@ data:
 
     wait_for_db
 
-    echo "creating multiplay database"
+    echo "creating gameservers database"
     query "CREATE DATABASE ${DB}"
 
-    echo "creating 90d retention policy"
-    query "CREATE RETENTION POLICY \"90d\" ON \"${DB}\" DURATION 90d REPLICATION 1"
+    echo "creating default_high retention policy"
+    query "CREATE RETENTION POLICY \"default_high\" ON \"${DB}\" DURATION 52w REPLICATION 1"
 
-    echo "creating cq_server_players continuous query"
-    query "CREATE CONTINUOUS QUERY \"cq_server_players\" ON \"${DB}\" RESAMPLE EVERY 1m FOR 5m BEGIN SELECT sum(\"players\") AS \"players\" INTO \"${DB}\".\"90d\".\"server_stats_players\" FROM \"server_stats\" GROUP BY time(1m), * END"
-
-    echo "multiplay database, 90d retention policy, and cq_server_players ready"
 
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: influx-multiplay-setup
+  name: influx-gameservers-setup
   namespace: hyperbytedb
 spec:
   ttlSecondsAfterFinished: 3600
@@ -63,7 +59,7 @@ spec:
   template:
     metadata:
       labels:
-        app: influx-multiplay-setup
+        app: influx-gameservers-setup
     spec:
       restartPolicy: OnFailure
       containers:
@@ -88,39 +84,38 @@ spec:
       volumes:
         - name: setup-script
           configMap:
-            name: influx-multiplay-setup
+            name: influx-gameservers-setup
             defaultMode: 0444
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: influx-multiplay
+  name: influx-gameservers
   namespace: hyperbytedb
   labels:
-    app: influx-multiplay
+    app: influx-gameservers
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: influx-multiplay
+      app: influx-gameservers
   template:
     metadata:
       labels:
-        app: influx-multiplay
+        app: influx-gameservers
     spec:
       containers:
         - name: ingester
-          image: influx-multiplay:local
+          image: influx-gameservers:local
           imagePullPolicy: Never
           args:
             - --url=http://hyperbytedb-proxy:8086
-            - --db=multiplay
+            - --db=gameservers
             - --create-db
             - --continuous
-            - --server-rows=0
-            - --server-small-rows=60000
-            - --machine-rows=0
+            - --num-servers=60000
+            - --num-machines=12522
             - --action-rows=0
           resources:
             requests:
