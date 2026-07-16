@@ -13,6 +13,7 @@ import (
 type InfluxWriter struct {
 	URL      string
 	Database string
+	DryRun   bool
 	writeNum atomic.Int64
 }
 
@@ -32,6 +33,18 @@ func (w *InfluxWriter) CreateDatabase() error {
 }
 
 func (w *InfluxWriter) WriteBody(body string) error {
+	if w.DryRun {
+		lines := strings.Split(body, "\n")
+		sample := 3
+		if sample > len(lines) {
+			sample = len(lines)
+		}
+		for i := 0; i < sample; i++ {
+			log.Printf("sample line: %s", lines[i])
+		}
+		log.Printf("Dry run complete: %d lines formatted, not written", len(lines))
+		return nil
+	}
 	n := w.writeNum.Add(1)
 	start := time.Now()
 	url := fmt.Sprintf("%s/write?db=%s&precision=ns", w.URL, w.Database)

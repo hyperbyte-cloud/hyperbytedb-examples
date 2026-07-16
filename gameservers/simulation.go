@@ -186,7 +186,10 @@ func NewSimulation(numServers, numMachines int, mode string) (*Simulation, error
 			machineID := nextMachineID
 			nextMachineID++
 
-			locationID := int32(regionIdx*100 + m)
+			// ponytail: one location (datacenter) per region → low cardinality.
+			// location is a site tag, not per-machine; machine_id/server_id are the
+			// only high-cardinality tags. Bump to a small per-region set if needed.
+			locationID := int32(regionIdx)
 			accountServiceID := int32(regionIdx % 20)
 
 			machine := Machine{

@@ -1,3 +1,3 @@
-module influx-ingester
+module gameservers
 
 go 1.21

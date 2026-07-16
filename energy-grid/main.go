@@ -11,6 +11,7 @@ func main() {
 	db := flag.String("db", "energy_grid", "HyperbyteDB database name")
 	createDB := flag.Bool("create-db", false, "Create the database before writing data")
 	dryRun := flag.Bool("dry-run", false, "Generate sample lines without writing to HyperbyteDB")
+	batchSize := flag.Int("batch", 5000, "Lines per HTTP write request")
 	continuous := flag.Bool("continuous", true, "Emit a new batch every interval")
 	interval := flag.Duration("interval", time.Minute, "Batch interval between write cycles")
 	seed := flag.Int64("seed", time.Now().UnixNano(), "Random seed for reproducible simulation")
@@ -61,7 +62,19 @@ func main() {
 			return nil
 		}
 
-		return writer.WriteBody(joinLines(lines))
+		if *batchSize <= 0 {
+			return writer.WriteBody(joinLines(lines))
+		}
+		for i := 0; i < len(lines); i += *batchSize {
+			end := i + *batchSize
+			if end > len(lines) {
+				end = len(lines)
+			}
+			if err := writer.WriteBody(joinLines(lines[i:end])); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	if !*continuous {

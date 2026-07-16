@@ -49,6 +49,7 @@ type influxWriter struct {
 	user       string
 	password   string
 	httpClient *http.Client
+	dryRun     bool
 }
 
 func (w *influxWriter) createDatabase() error {
@@ -67,6 +68,18 @@ func (w *influxWriter) createDatabase() error {
 }
 
 func (w *influxWriter) writeLineProtocol(body string) error {
+	if w.dryRun {
+		lines := strings.Split(body, "\n")
+		sample := 3
+		if sample > len(lines) {
+			sample = len(lines)
+		}
+		for i := 0; i < sample; i++ {
+			log.Printf("sample line: %s", lines[i])
+		}
+		log.Printf("Dry run complete: %d lines formatted, not written", len(lines))
+		return nil
+	}
 	qs := url.Values{}
 	qs.Set("db", w.database)
 	qs.Set("precision", "s")
@@ -261,18 +274,21 @@ func runPass(
 }
 
 func main() {
-	influxURL := flag.String("influx", "http://127.0.0.1:8086", "InfluxDB v1 base URL (no trailing slash)")
-	db := flag.String("db", "n2yo", "InfluxDB database name")
-	influxUser := flag.String("influx-user", "", "InfluxDB username (optional)")
-	influxPass := flag.String("influx-password", "", "InfluxDB password (optional)")
-	createDB := flag.Bool("create-db", false, "Run CREATE DATABASE before writing")
+	url := flag.String("url", "http://localhost:8086", "HyperbyteDB HTTP URL")
+	db := flag.String("db", "n2yo", "HyperbyteDB database name")
+	influxUser := flag.String("influx-user", "", "HyperbyteDB username (optional)")
+	influxPass := flag.String("influx-password", "", "HyperbyteDB password (optional)")
+	createDB := flag.Bool("create-db", false, "Create the database before writing data")
+	dryRun := flag.Bool("dry-run", false, "Fetch and format data without writing to HyperbyteDB")
+	batch := flag.Int("batch", 5000, "Lines per HTTP write request")
+	continuous := flag.Bool("continuous", true, "Poll continuously for satellite positions")
 	apiKey := flag.String("api-key", "", "N2YO API key (or set N2YO_API_KEY)")
 	satelliteList := flag.String("satellites", "25544", "Comma-separated NORAD catalog IDs to monitor (e.g. 25544,43013,33591)")
 	obsLat := flag.Float64("lat", 0, "Observer latitude (decimal degrees)")
 	obsLng := flag.Float64("lng", 0, "Observer longitude (decimal degrees)")
 	obsAlt := flag.Float64("alt", 0, "Observer altitude above sea level (meters)")
 	seconds := flag.Int("seconds", 1, "N2YO only: position samples per satellite (1–300, each is +1s). Ignored for -sgp4")
-	interval := flag.Duration("interval", 15*time.Second, "How often to compute/write positions; 0 = once and exit")
+	interval := flag.Duration("interval", 15*time.Second, "Poll interval between write cycles; 0 = once and exit")
 	sgp4 := flag.Bool("sgp4", false, "Use Celestrak TLE + local SGP4 (e.g. all Starlink). No N2YO key. See -sgp4-url, or -spacetrack for space-track.org")
 	sgp4URL := flag.String("sgp4-url", defaultCelestrakStarlink, "Celestrak gp.php TLE URL (used with -sgp4; ignored if -spacetrack)")
 	sgp4Cache := flag.String("sgp4-cache", DefaultTLECachePath(), "TLE file: saved on success; on HTTP 403/offline, load from this file. Use 'none' to disable. Not used with -spacetrack (use -spacetrack-cache)")
@@ -285,6 +301,10 @@ func main() {
 	spacetrackPassword := flag.String("spacetrack-password", "", "Space-Track password (or SPACETRACK_PASSWORD)")
 	spacetrackCache := flag.String("spacetrack-cache", DefaultSpaceTrackCachePath(), "3le cache file; 'none' to disable. Used only with -spacetrack")
 	flag.Parse()
+
+	if !*continuous {
+		*interval = 0
+	}
 
 	if *spacetrack && !*sgp4 {
 		log.Fatal("-spacetrack requires -sgp4")
@@ -303,7 +323,7 @@ func main() {
 		passw := mustEnvOrFlag(*spacetrackPassword, "SPACETRACK_PASSWORD")
 		if *spacetrack {
 			runSGP4Mode(
-				*influxURL, *db, *influxUser, *influxPass, *createDB,
+				*url, *db, *influxUser, *influxPass, *createDB, *dryRun, *batch,
 				"", "", *sgp4Refresh, *interval,
 				*obsLat, *obsLng, *obsAlt,
 				true, ident, passw, stC,
@@ -311,7 +331,7 @@ func main() {
 			return
 		}
 		runSGP4Mode(
-			*influxURL, *db, *influxUser, *influxPass, *createDB,
+			*url, *db, *influxUser, *influxPass, *createDB, *dryRun, *batch,
 			*sgp4URL, cp, *sgp4Refresh, *interval,
 			*obsLat, *obsLng, *obsAlt,
 			false, "", "", "",
@@ -335,11 +355,12 @@ func main() {
 	}
 
 	w := &influxWriter{
-		url:        strings.TrimSuffix(*influxURL, "/"),
+		url:        strings.TrimSuffix(*url, "/"),
 		database:   *db,
 		user:       *influxUser,
 		password:   *influxPass,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		dryRun:     *dryRun,
 	}
 	if *createDB {
 		if err := w.createDatabase(); err != nil {

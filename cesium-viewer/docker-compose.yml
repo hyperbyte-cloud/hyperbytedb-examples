@@ -1,0 +1,14 @@
+services:
+  cesium-viewer:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    command:
+      - --listen=0.0.0.0:8090
+      - --influx=http://host.docker.internal:8086
+      - --db=n2yo
+      - --measurement=tle_position
+      - --window=15m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

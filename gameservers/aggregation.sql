@@ -26,7 +26,7 @@ CREATE DATABASE "gameservers"
 
 USE "gameservers"
 
-CREATE RETENTION POLICY "default_high" ON "gameservers" DURATION 52w REPLICATION 1
+CREATE RETENTION POLICY "default_high" ON "multiplay" DURATION 52w REPLICATION 1
 
 SHOW RETENTION POLICIES ON "gameservers"
 
@@ -60,8 +60,16 @@ END
 -- ---------------------------------------------------------------------------
 -- Option B: Materialized view (incremental, flush-triggered)
 -- ---------------------------------------------------------------------------
--- Player/resource rollups (no num_servers — use CQ below if you need count(cpu)).
--- Tags omitted from GROUP BY (e.g. server_id) are dropped from the destination series.
+-- Player/resource rollups + num_servers = count("cpu").
+-- Groups by every tag except machine_id and server_id (the only high-cardinality
+-- tags), so those two are dropped from the destination series; everything else is
+-- preserved. Derive averages in Grafana from the stored sums + num_servers:
+--   Avg CPU %    = sum("cpu")/sum("num_servers")
+--   Avg memory   = sum("mem")/sum("num_servers")
+--   Slot util %  = sum("used_slots")/sum("max_players")*100
+-- Do NOT use mean() inside an MV on HyperByteDB <= 0.8.2: the sum/count expansion
+-- nests aggregates and chDB rejects it (Code 184 ILLEGAL_AGGREGATION). Fixed in
+-- 0.8.3 (commit 8c6ed8a); until deployed, store sums and divide at query time.
 -- Query the rollup measurement, not raw server_stats in default_high:
 --   SELECT sum("players") FROM "default_high"."server_stats_1m" GROUP BY time(1m), "region_id"
 
@@ -72,25 +80,34 @@ END
 --   DROP MEASUREMENT "server_stats_1m"
 -- then run the CREATE MATERIALIZED VIEW below again.
 
-CREATE MATERIALIZED VIEW "mv_server_stats" ON "gameservers"
+-- Default: fast create; rollups start from the next server_stats write.
+-- Add WITH BACKFILL before AS to scan existing history (can take minutes on
+-- large measurements — run during a maintenance window on the Raft leader).
+
+CREATE MATERIALIZED VIEW "mv_server_stats" ON "multiplay"
 AS SELECT
+  count("cpu") AS "num_servers",
   sum("players") AS "players",
-  sum("max_players") AS "maxplayers",
-  sum("cpu") AS "cpu",
-  sum("mem") AS "mem",
-  sum("used_slots") AS "usedslots"
+  sum("max_players") AS "max_players",
+  sum("used_slots") AS "used_slots"
 INTO "default_high"."server_stats"
 FROM "server_stats"
 GROUP BY time(1m),
   "account_service_id",
+  "fleet",
   "fleet_id",
-  "region",
-  "region_id",
-  "location_id",
-  "provider",
-  "profile_id",
   "game_id",
-  "mod_id"
+  "location_id",
+  "map",
+  "mod_id",
+  "profile_id",
+  "provider",
+  "region",
+  "region_id"
+
+-- To backfill existing server_stats history on create:
+-- CREATE MATERIALIZED VIEW "mv_server_stats" ON "multiplay" WITH BACKFILL
+-- AS SELECT ...
 
 
 SHOW MATERIALIZED VIEWS ON "gameservers"

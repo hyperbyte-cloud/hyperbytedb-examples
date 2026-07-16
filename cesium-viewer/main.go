@@ -21,11 +21,11 @@ var static embed.FS
 
 func main() {
 	listen := flag.String("listen", "127.0.0.1:8090", "HTTP listen address")
-	influx := flag.String("influx", "http://127.0.0.1:8086", "InfluxDB 1 base URL (no /query path)")
-	db := flag.String("db", "n2yo", "InfluxDB database name")
-	influxUser := flag.String("influx-user", "", "InfluxDB username")
-	influxPass := flag.String("influx-password", os.Getenv("INFLUX_PASSWORD"), "InfluxDB password")
-	measurement := flag.String("measurement", "tle_position", "InfluxDB measurement (tle_position or n2yo_position)")
+	influx := flag.String("influx", "http://127.0.0.1:8086", "HyperbyteDB HTTP URL (no /query path)")
+	db := flag.String("db", "n2yo", "HyperbyteDB database name")
+	influxUser := flag.String("influx-user", "", "HyperbyteDB username")
+	influxPass := flag.String("influx-password", os.Getenv("INFLUX_PASSWORD"), "HyperbyteDB password")
+	measurement := flag.String("measurement", "tle_position", "HyperbyteDB measurement (tle_position or n2yo_position)")
 	window := flag.String("window", "15m", "InfluxQL time window, e.g. 15m, 1h")
 	// Default SLIMIT: large values make InfluxDB GROUP BY very slow; use ?limit= for more.
 	limit := flag.Int("limit", 20_000, "Default SLIMIT (max unique series); query ?limit=; cap 100000")

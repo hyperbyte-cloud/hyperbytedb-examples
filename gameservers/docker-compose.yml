@@ -1,0 +1,26 @@
+services:
+  grafana:
+    image: grafana/grafana:12.4.2
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    extra_hosts:
+      - "hyperbytedb:host-gateway"
+
+  gameservers:
+    build: .
+    restart: unless-stopped
+    command:
+      - --url=http://host.docker.internal:8086
+      - --db=gameservers
+      - --create-db
+      - --continuous
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -9,12 +9,13 @@ import (
 )
 
 func main() {
-	url := flag.String("url", "http://localhost:8086", "InfluxDB v1 HTTP URL")
-	db := flag.String("db", "gameservers", "Database name")
-	batch := flag.Int("batch", 5000, "Lines per HTTP write request (burst mode only)")
+	url := flag.String("url", "http://localhost:8086", "HyperbyteDB HTTP URL")
+	db := flag.String("db", "gameservers", "HyperbyteDB database name")
+	batch := flag.Int("batch", 5000, "Lines per HTTP write request")
 	workers := flag.Int("workers", 6, "Concurrent workers per measurement type (burst mode only)")
-	continuous := flag.Bool("continuous", false, "Repeat ingestion cycles forever")
+	continuous := flag.Bool("continuous", true, "Repeat ingestion cycles forever")
 	createDB := flag.Bool("create-db", false, "Create the database before writing data")
+	dryRun := flag.Bool("dry-run", false, "Generate sample data without writing to HyperbyteDB")
 
 	period := flag.Duration("period", 0,
 		"Spread all writes evenly across this duration each cycle (0 = burst as fast as possible). "+
@@ -51,7 +52,7 @@ func main() {
 		effectivePeriod = time.Minute
 	}
 
-	w := &InfluxWriter{URL: *url, Database: *db}
+	w := &InfluxWriter{URL: *url, Database: *db, DryRun: *dryRun}
 	log.Printf("[startup] Writer ready for %s / %s", *url, *db)
 
 	if *createDB {

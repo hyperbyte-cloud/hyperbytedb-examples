@@ -1,0 +1,299 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Marine animal GPS tracking from Movebank. Geomap of animal locations with speed and heading over time.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "basemap": { "name": "Basemap", "type": "default" },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showScale": true,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "name": "Animals",
+            "type": "markers",
+            "tooltip": true,
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": { "field": "ground_speed", "fixed": "dark-blue" },
+                "opacity": 0.85,
+                "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
+                "size": { "field": "ground_speed", "fixed": 8, "max": 16, "min": 4 },
+                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
+                "text": { "field": "animal", "fixed": "", "mode": "field" },
+                "textConfig": { "fontSize": 10, "offsetX": 0, "offsetY": -8, "textAlign": "center", "textBaseline": "bottom" }
+              }
+            },
+            "location": { "mode": "coords", "latitude": "lat", "longitude": "lon" }
+          }
+        ],
+        "tooltip": { "mode": "details" },
+        "view": { "id": "zero", "lat": -1, "lon": -90, "zoom": 4 }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table",
+          "query": "SELECT\n  last(\"lat\") AS \"lat\",\n  last(\"lon\") AS \"lon\",\n  last(\"ground_speed\") AS \"ground_speed\"\nFROM \"animal_location\"\nWHERE $timeFilter\nGROUP BY \"animal\"\nSLIMIT 200"
+        }
+      ],
+      "title": "Animal Locations",
+      "type": "geomap"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "m/s",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "unit": "mps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_animal",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["animal"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "animal_location",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["ground_speed"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Ground Speed by Animal",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "degrees",
+            "axisPlacement": "auto",
+            "axisSoftMax": 360,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "max": 360,
+          "min": 0,
+          "unit": "degree"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "alias": "$tag_animal",
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["animal"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "animal_location",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [[{ "params": ["heading"], "type": "field" }, { "params": [], "type": "mean" }]],
+          "tags": []
+        }
+      ],
+      "title": "Heading by Animal",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "lat" },
+            "properties": [{ "id": "unit", "value": "decimalDegree" }, { "id": "decimals", "value": 4 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "lon" },
+            "properties": [{ "id": "unit", "value": "decimalDegree" }, { "id": "decimals", "value": 4 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ground_speed" },
+            "properties": [{ "id": "unit", "value": "mps" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "heading" },
+            "properties": [{ "id": "unit", "value": "degree" }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 25 },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": false, "displayName": "animal" }]
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${datasource}" },
+          "groupBy": [{ "params": ["animal"], "type": "tag" }, { "params": ["taxon"], "type": "tag" }],
+          "measurement": "animal_location",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT\n  last(\"lat\") AS \"lat\",\n  last(\"lon\") AS \"lon\",\n  last(\"ground_speed\") AS \"ground_speed\",\n  last(\"heading\") AS \"heading\"\nFROM \"animal_location\"\nWHERE $timeFilter\nGROUP BY \"animal\", \"taxon\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table",
+          "select": [[{ "params": ["lat"], "type": "field" }, { "params": [], "type": "last" }]],
+          "tags": []
+        }
+      ],
+      "title": "Latest Position per Animal",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": {},
+            "renameByName": {
+              "animal": "Animal",
+              "taxon": "Taxon",
+              "lat": "Latitude",
+              "lon": "Longitude",
+              "ground_speed": "Speed (m/s)",
+              "heading": "Heading (deg)"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "refresh": "1m",
+  "schemaVersion": 42,
+  "tags": ["marine", "tracking", "hyperbytedb"],
+  "templating": {
+    "list": [
+      {
+        "current": { "text": "Marine Tracking", "value": "Marine Tracking" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "influxdb",
+        "refresh": 1,
+        "regex": "Marine Tracking",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Marine Animal Tracking",
+  "uid": "marine-tracking",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,87 @@
+services:
+  hyperbytedb:
+    image: ghcr.io/hyperbyte-cloud/hyperbytedb:latest
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.4.2
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./flight-tracking/grafana/dashboards/flight-tracking.json:/var/lib/grafana/dashboards/flight-tracking.json:ro
+      - ./marine-tracking/grafana/dashboards/marine-tracking.json:/var/lib/grafana/dashboards/marine-tracking.json:ro
+      - ./satellite-tracking/grafana/dashboards/starlink-geomap-influxql.json:/var/lib/grafana/dashboards/starlink-geomap-influxql.json:ro
+      - ./energy-grid/grafana/dashboards/energy-grid.json:/var/lib/grafana/dashboards/energy-grid.json:ro
+      - ./gameservers/grafana/dashboards/gameservers.json:/var/lib/grafana/dashboards/gameservers.json:ro
+      - ./gameservers/grafana/dashboards/gameservers-performance.json:/var/lib/grafana/dashboards/gameservers-performance.json:ro
+    depends_on:
+      - hyperbytedb
+
+  flight-tracking:
+    build: ./flight-tracking
+    restart: unless-stopped
+    command:
+      - --url=http://hyperbytedb:8086
+      - --db=flight_tracking
+      - --create-db
+      - --continuous
+      - --interval=10s
+    depends_on:
+      - hyperbytedb
+
+  marine-tracking:
+    build: ./marine-tracking
+    restart: unless-stopped
+    command:
+      - --url=http://hyperbytedb:8086
+      - --db=marine_tracking
+      - --create-db
+      - --continuous
+      - --interval=5m
+    depends_on:
+      - hyperbytedb
+
+  satellite-tracking:
+    build: ./satellite-tracking
+    restart: unless-stopped
+    command:
+      - --url=http://hyperbytedb:8086
+      - --db=n2yo
+      - --create-db
+      - --continuous
+      - --interval=15s
+      - --sgp4
+      - --sgp4-refresh=2h5m
+    depends_on:
+      - hyperbytedb
+
+  energy-grid:
+    build: ./energy-grid
+    restart: unless-stopped
+    command:
+      - --url=http://hyperbytedb:8086
+      - --db=energy_grid
+      - --create-db
+      - --continuous
+      - --interval=1m
+    depends_on:
+      - hyperbytedb
+
+  gameservers:
+    build: ./gameservers
+    restart: unless-stopped
+    command:
+      - --url=http://hyperbytedb:8086
+      - --db=gameservers
+      - --create-db
+      - --continuous
+    depends_on:
+      - hyperbytedb

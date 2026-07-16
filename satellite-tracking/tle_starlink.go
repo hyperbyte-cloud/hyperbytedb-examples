@@ -195,10 +195,13 @@ func runTLEPass(
 	objs []tleObject,
 	obsLat, obsLng, obsAlt float64,
 	sourceTag, groupTag string,
+	batchSize int,
 ) (int, error) {
 	now := time.Now().UTC()
 	var lines []string
-	const batch = 3000
+	if batchSize <= 0 {
+		batchSize = 5000
+	}
 	written := 0
 	flush := func() error {
 		if len(lines) == 0 {
@@ -218,7 +221,7 @@ func runTLEPass(
 		az, el := lookAnglesDeg(pos, obsLat, obsLng, obsAlt, now)
 		ts := now.Unix()
 		lines = append(lines, lineTLE(o.NORAD, o.Name, sourceTag, groupTag, lat, lon, alt, v, az, el, ts))
-		if len(lines) >= batch {
+		if len(lines) >= batchSize {
 			if err := flush(); err != nil {
 				return written, err
 			}
@@ -250,7 +253,8 @@ func refreshTLESetSpaceTrack(ctx context.Context, st *spaceTrackClient, cachePat
 
 func runSGP4Mode(
 	influxURL, db, influxUser, influxPass string,
-	createDB bool,
+	createDB, dryRun bool,
+	batch int,
 	tleURL string,
 	tleCachePath string,
 	refresh, interval time.Duration,
@@ -264,6 +268,7 @@ func runSGP4Mode(
 		user:       influxUser,
 		password:   influxPass,
 		httpClient: &http.Client{Timeout: 2 * time.Minute},
+		dryRun:     dryRun,
 	}
 	if createDB {
 		if err := w.createDatabase(); err != nil {
@@ -299,9 +304,9 @@ func runSGP4Mode(
 	if oneShot {
 		if spacetrack {
 			if spacetrackCache != "" {
-			log.Printf("one-shot: SGP4 + Space-Track full GP/3le (cache %s)", spacetrackCache)
-		} else {
-			log.Printf("one-shot: SGP4 + Space-Track full GP/3le (no cache path)")
+				log.Printf("one-shot: SGP4 + Space-Track full GP/3le (cache %s)", spacetrackCache)
+			} else {
+				log.Printf("one-shot: SGP4 + Space-Track full GP/3le (no cache path)")
 			}
 		} else if tleCachePath != "" {
 			log.Printf("one-shot: SGP4 + TLEs from %s (disk cache: %s)", tleURL, tleCachePath)
@@ -345,7 +350,7 @@ func runSGP4Mode(
 			lastFetch = time.Now()
 			log.Printf("TLE loaded: %d satellites (source %s, group %s)", len(cache), sourceTag, groupTag)
 		}
-		n, err := runTLEPass(w, cache, obsLat, obsLng, obsAlt, sourceTag, groupTag)
+		n, err := runTLEPass(w, cache, obsLat, obsLng, obsAlt, sourceTag, groupTag, batch)
 		if err != nil {
 			log.Printf("error: %v", err)
 			return

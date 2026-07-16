@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -20,6 +21,9 @@ func main() {
 	createDB := flag.Bool("create-db", false, "Create the database before writing data")
 	dryRun := flag.Bool("dry-run", false, "Fetch and format data without writing to HyperbyteDB")
 	batch := flag.Int("batch", 5000, "Lines per HTTP write request")
+
+	continuous := flag.Bool("continuous", true, "Poll Movebank continuously for live tracking data")
+	interval := flag.Duration("interval", 5*time.Minute, "Poll interval between Movebank requests")
 
 	studyID := flag.Int64("study-id", defaultStudyID, "Movebank study ID")
 	sensorType := flag.String("sensor-type", defaultSensorType, "Movebank sensor type name (e.g. gps)")
@@ -85,29 +89,53 @@ func main() {
 		}
 	}
 
+	if !*continuous {
+		if err := runOnce(writer, client, opts, *dryRun, *batch); err != nil {
+			log.Fatalf("run: %v", err)
+		}
+		return
+	}
+
+	log.Printf("Live mode: polling Movebank every %s", *interval)
+	for {
+		cycleStart := time.Now()
+		if err := runOnce(writer, client, opts, *dryRun, *batch); err != nil {
+			log.Printf("cycle error: %v", err)
+			time.Sleep(minDuration(*interval, 30*time.Second))
+			continue
+		}
+		if sleep := *interval - time.Since(cycleStart); sleep > 0 {
+			time.Sleep(sleep)
+		}
+	}
+}
+
+func runOnce(writer *InfluxWriter, client *MovebankClient, opts FetchOptions, dryRun bool, batchSize int) error {
 	start := time.Now()
+
 	var points []TrackingPoint
 	var err error
 
 	if client.authenticated() {
-		log.Printf("Fetching GPS events via Movebank direct-read CSV API (study %d)...", *studyID)
-		if study, studyErr := client.GetStudy(*studyID); studyErr == nil && study.Name != "" {
+		log.Printf("Fetching GPS events via Movebank direct-read CSV API (study %d)...", opts.StudyID)
+		if study, studyErr := client.GetStudy(opts.StudyID); studyErr == nil && study.Name != "" {
 			log.Printf("Study: %s", study.Name)
 		}
 		points, err = client.FetchEventsCSV(opts)
 	} else {
-		log.Printf("Fetching GPS events via Movebank public JSON API (study %d)...", *studyID)
+		log.Printf("Fetching GPS events via Movebank public JSON API (study %d)...", opts.StudyID)
 		points, err = client.FetchEventsJSON(opts)
 	}
 	if err != nil {
-		log.Fatalf("fetch events: %v", err)
+		return fmt.Errorf("fetch events: %w", err)
 	}
 	if len(points) == 0 {
-		log.Fatal("no tracking points returned")
+		log.Printf("No tracking points returned")
+		return nil
 	}
 	log.Printf("Fetched %d location points in %v", len(points), time.Since(start))
 
-	if *dryRun {
+	if dryRun {
 		sample := 3
 		if sample > len(points) {
 			sample = len(points)
@@ -116,14 +144,15 @@ func main() {
 			log.Printf("sample line: %s", points[i].ToLineProtocol())
 		}
 		log.Printf("Dry run complete: %d points formatted, not written", len(points))
-		return
+		return nil
 	}
 
-	written, err := writePoints(writer, points, *batch)
+	written, err := writePoints(writer, points, batchSize)
 	if err != nil {
-		log.Fatalf("write to hyperbytedb: %v", err)
+		return fmt.Errorf("write to hyperbytedb: %w", err)
 	}
-	log.Printf("Wrote %d lines to %q on %s", written, *db, *url)
+	log.Printf("Wrote %d lines to %q", written, writer.Database)
+	return nil
 }
 
 func splitCSV(value string) []string {
@@ -185,6 +214,13 @@ func writePoints(writer *InfluxWriter, points []TrackingPoint, batchSize int) (i
 		return written, err
 	}
 	return written, nil
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func init() {
